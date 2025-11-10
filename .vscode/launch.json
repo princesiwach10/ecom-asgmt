@@ -1,0 +1,23 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "E-Com App - Run",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}\\manage.py",
+      "args": ["runserver"],
+      "django": true,
+      "autoStartBrowser": false
+    },
+    {
+      "name": "E-Com App - Test",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}\\manage.py",
+      "args": ["test"],
+      "django": true,
+      "autoStartBrowser": false
+    }
+  ]
+}
