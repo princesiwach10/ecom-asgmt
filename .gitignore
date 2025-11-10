@@ -1,0 +1,9 @@
+# Virtual environment
+.venv
+
+# Helper cache dir and files
+*/__pycache__
+*pyc
+
+# Database file
+db.sqlite3
