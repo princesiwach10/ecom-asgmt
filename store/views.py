@@ -1,11 +1,20 @@
 # Related third-party imports
+from django.conf import settings
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 # Local application/library specific imports
 from .inmemory import db, D, money
-from .serializers import CartItemSerializer, CartOutSerializer, ProductSerializer
+from .permissions import HasAdminApiKey
+from .serializers import (
+    AdminStatsSerializer,
+    CartItemSerializer,
+    CartOutSerializer,
+    CheckoutSerializer,
+    OrderSerializer,
+    ProductSerializer,
+)
 
 
 def get_user_id(request) -> str:
@@ -129,3 +138,97 @@ class ProductList(APIView):
         # then serializer validate/shape
         serializer = ProductSerializer(data, many=True)
         return Response(serializer.data)
+
+
+class Checkout(APIView):
+    """
+    POST /api/checkout/
+    """
+
+    def post(self, request):
+        user_id = get_user_id(request)
+        ser = CheckoutSerializer(data=request.data or {})
+        ser.is_valid(raise_exception=True)
+        code = ser.validated_data.get("discount_code") or None
+
+        # If client sends a code, validate it before attempting checkout.
+        if code and not db.validate_discount(code):
+            if not db.eligible_now():
+                return Response(
+                    {"detail": f"Discount not available for order."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            return Response(
+                {"detail": "Invalid or unavailable discount code."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            order = db.place_order(user_id, discount_code=code)
+        except ValueError as e:
+            return Response(
+                {"detail": str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            OrderSerializer(order).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class AdminGenerateDiscount(APIView):
+    """
+    POST /api/admin/generate-discount/
+
+    Generates a single-use discount code only when:
+    - the next order is the Nth (eligible_now), and
+    - no active code already exists.
+    """
+
+    permission_classes = [HasAdminApiKey]
+
+    def post(self, request):
+        if not db.eligible_now():
+            n = settings.NTH_ORDER_FOR_DISCOUNT
+            return Response(
+                {
+                    "detail": f"Not eligible yet. A code is available only for every {n}th order."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if db.has_active_code():
+            return Response(
+                {"detail": "An active discount code already exists."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        dc = db.generate_code()
+        return Response(
+            {
+                "code": dc.code,
+                "discount_pct": dc.discount_pct,
+                "created_at": dc.created_at.isoformat().replace("+00:00", "Z"),
+                "note": "Share this code with users. It will be valid for the next eligible (nth) order and is single-use.",
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class AdminStats(APIView):
+    """
+    GET /api/admin/stats/
+
+    Returns:
+    - items_purchased
+    - gross_amount
+    - total_discount_amount
+    - net_amount
+    - discount_codes[] (with used, redeemed_order_id, created_at, etc.)
+    """
+
+    permission_classes = [HasAdminApiKey]
+
+    def get(self, request):
+        stats = db.stats()
+        return Response(AdminStatsSerializer(stats).data)

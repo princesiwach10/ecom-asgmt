@@ -51,3 +51,95 @@ class ProductSerializer(serializers.Serializer):
         max_digits=10,
         decimal_places=2,
     )
+
+
+class CheckoutSerializer(serializers.Serializer):
+    """
+    Request payload for checkout.
+    """
+
+    discount_code = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+
+
+class OrderItemSerializer(serializers.Serializer):
+    """
+    Output payload for a single order item.
+    """
+
+    product_id = serializers.IntegerField()
+
+    name = serializers.CharField()
+
+    price = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+    )
+
+    quantity = serializers.IntegerField()
+
+    line_total = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+    )
+
+
+class OrderSerializer(serializers.Serializer):
+    """
+    Output payload for a completed order.
+    """
+
+    id = serializers.IntegerField()
+
+    user_id = serializers.CharField()
+
+    items = OrderItemSerializer(many=True)
+
+    subtotal = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+    )
+
+    discount = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+    )
+
+    total = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+    )
+
+    created_at = serializers.DateTimeField()
+
+    discount_code = serializers.CharField(
+        allow_null=True,
+        required=False,
+    )
+
+
+class AdminStatsSerializer(serializers.Serializer):
+    """
+    Admin roll-up for purchases and discount codes.
+    """
+
+    items_purchased = serializers.IntegerField()
+
+    gross_amount = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+    )
+
+    total_discount_amount = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+    )
+    net_amount = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+    )
+
+    discount_codes = serializers.ListField()
