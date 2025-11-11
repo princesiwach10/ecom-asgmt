@@ -321,3 +321,19 @@ class ProductAPITests(TestCase):
 
             # price should be a stringified decimal with two places
             self.assertRegex(item["price"], r"^\d+\.\d{2}$")
+
+
+class SchemaTests(TestCase):
+    def test_openapi_schema_serves(self):
+        r = self.client.get(reverse("schema"), HTTP_ACCEPT="application/json")
+        self.assertEqual(r.status_code, 200)
+
+        body = r.content.decode()
+        # Try JSON first
+        try:
+            data = json.loads(body)
+            self.assertIn("openapi", data)
+            self.assertTrue(str(data["openapi"]).startswith("3."))
+        except json.JSONDecodeError:
+            # Fall back to simple YAML check
+            self.assertRegex(body, r"(?m)^openapi:\s*3\.")

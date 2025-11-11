@@ -143,3 +143,25 @@ class AdminStatsSerializer(serializers.Serializer):
     )
 
     discount_codes = serializers.ListField()
+
+
+class HealthSerializer(serializers.Serializer):
+    """
+    Simple health response.
+    """
+
+    status = serializers.CharField()
+
+
+class AdminGenerateDiscountResponseSerializer(serializers.Serializer):
+    """
+    Schema for the admin generate-discount response.
+    """
+
+    code = serializers.CharField()
+
+    created_at = serializers.CharField()
+
+    discount_pct = serializers.IntegerField()
+
+    note = serializers.CharField()

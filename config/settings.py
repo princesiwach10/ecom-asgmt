@@ -49,6 +49,8 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "drf_spectacular",
+    "drf_spectacular_sidecar",
     "store",
 ]
 
@@ -138,6 +140,30 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"],
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "E-Commerce Assignment API",
+    "DESCRIPTION": (
+        "In-memory cart & checkout, nth-order single-use discounts, Admin Stats & Discount Generator.\n\n"
+        "Header conventions:\n"
+        "- X-User-Id: identify caller (demo auth)\n"
+        "- X-Admin-Key: required for /api/admin/* endpoints\n"
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
+    "SECURITY": [],
+    "COMPONENTS": {
+        "securitySchemes": {
+            "AdminApiKey": {
+                "type": "apiKey",
+                "in": "header",
+                "name": "X-Admin-Key",
+            }
+        }
+    },
 }
 
 

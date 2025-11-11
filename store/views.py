@@ -1,5 +1,11 @@
 # Related third-party imports
 from django.conf import settings
+from drf_spectacular.utils import (
+    extend_schema,
+    OpenApiExample,
+    OpenApiParameter,
+    OpenApiResponse,
+)
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -8,12 +14,31 @@ from rest_framework.views import APIView
 from .inmemory import db, D, money
 from .permissions import HasAdminApiKey
 from .serializers import (
+    AdminGenerateDiscountResponseSerializer,
     AdminStatsSerializer,
     CartItemSerializer,
     CartOutSerializer,
     CheckoutSerializer,
+    HealthSerializer,
     OrderSerializer,
     ProductSerializer,
+)
+
+admin_key_param = OpenApiParameter(
+    name="X-Admin-Key",
+    type=str,
+    location=OpenApiParameter.HEADER,
+    description="Admin API key (must match settings.ADMIN_API_KEY).",
+    required=True,
+)
+
+
+user_header_param = OpenApiParameter(
+    name="X-User-Id",
+    type=str,
+    location=OpenApiParameter.HEADER,
+    description="Caller identity for demo auth (e.g., 'u1').",
+    required=False,
 )
 
 
@@ -24,10 +49,22 @@ def get_user_id(request) -> str:
     return request.headers.get("X-User-Id", "u1")
 
 
+@extend_schema(
+    tags=["cart"],
+    summary="Add item to cart (increment quantity)",
+    parameters=[user_header_param],
+    request=CartItemSerializer,
+    responses={201: OpenApiResponse(description="Item added.")},
+    examples=[
+        OpenApiExample(
+            "Add 2 Almonds",
+            value={"product_id": 1, "quantity": 2},
+        )
+    ],
+)
 class CartItemAdd(APIView):
     """
-    POST /api/cart/items/
-    Adds to the cart (increments existing quantity).
+    Adds item to the cart (increments existing quantity).
     """
 
     def post(self, request):
@@ -53,6 +90,26 @@ class CartItemAdd(APIView):
         )
 
 
+@extend_schema(
+    tags=["cart"],
+    summary="Set quantity / remove item",
+    parameters=[
+        user_header_param,
+        OpenApiParameter(
+            "product_id", int, OpenApiParameter.PATH, description="Product ID in cart"
+        ),
+    ],
+    request={
+        "application/json": {
+            "type": "object",
+            "properties": {"quantity": {"type": "integer"}},
+        }
+    },
+    responses={
+        200: OpenApiResponse(description="Cart updated."),
+        204: OpenApiResponse(description="Removed."),
+    },
+)
 class CartItemUpdate(APIView):
     """
     PUT sets the exact quantity. A quantity <= 0 removes the item.
@@ -93,6 +150,12 @@ class CartItemUpdate(APIView):
         return Response({"detail": "Cart updated."})
 
 
+@extend_schema(
+    tags=["cart"],
+    summary="Get current cart",
+    parameters=[user_header_param],
+    responses=OpenApiResponse(description="Cart contents and total."),
+)
 class CartView(APIView):
     """
     GET /api/cart/
@@ -117,11 +180,21 @@ class CartView(APIView):
         return Response(CartOutSerializer(res_data).data)
 
 
+@extend_schema(
+    tags=["ops"],
+    summary="Health check",
+    responses={200: HealthSerializer},
+)
 class HealthView(APIView):
     def get(self, request):
         return Response({"status": "ok"})
 
 
+@extend_schema(
+    tags=["catalog"],
+    summary="List products",
+    responses=OpenApiResponse(response=ProductSerializer(many=True)),
+)
 class ProductList(APIView):
     """
     GET /api/products/
@@ -140,6 +213,17 @@ class ProductList(APIView):
         return Response(serializer.data)
 
 
+@extend_schema(
+    tags=["checkout"],
+    summary="Checkout current cart and create an order",
+    parameters=[user_header_param],
+    request=CheckoutSerializer,
+    responses={201: OrderSerializer},
+    examples=[
+        OpenApiExample("Without discount", value={}),
+        OpenApiExample("With discount code", value={"discount_code": "AB12CD34"}),
+    ],
+)
 class Checkout(APIView):
     """
     POST /api/checkout/
@@ -177,6 +261,19 @@ class Checkout(APIView):
         )
 
 
+@extend_schema(
+    tags=["admin"],
+    summary="Generate discount code (only when next order is eligible)",
+    parameters=[admin_key_param],
+    request=None,
+    responses={
+        201: AdminGenerateDiscountResponseSerializer,
+        400: OpenApiResponse(
+            description="Not eligible or an active code already exists"
+        ),
+        403: OpenApiResponse(description="Unauthorized (missing/invalid admin key)"),
+    },
+)
 class AdminGenerateDiscount(APIView):
     """
     POST /api/admin/generate-discount/
@@ -215,6 +312,12 @@ class AdminGenerateDiscount(APIView):
         )
 
 
+@extend_schema(
+    tags=["admin"],
+    summary="Admin stats",
+    parameters=[admin_key_param],
+    responses={200: AdminStatsSerializer},
+)
 class AdminStats(APIView):
     """
     GET /api/admin/stats/
