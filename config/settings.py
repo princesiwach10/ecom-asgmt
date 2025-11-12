@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 import environ
 import os
+from corsheaders.defaults import default_headers
 from django.core.exceptions import ImproperlyConfigured
 from pathlib import Path
 
@@ -51,10 +52,12 @@ INSTALLED_APPS = [
     "rest_framework",
     "drf_spectacular",
     "drf_spectacular_sidecar",
+    "corsheaders",
     "store",
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -179,3 +182,10 @@ if NTH_ORDER_FOR_DISCOUNT < 1:
 
 if not (1 <= DISCOUNT_PERCENT <= 100):
     raise ImproperlyConfigured("DISCOUNT_PERCENT must be between 1 and 100.")
+
+
+CORS_ALLOWED_ORIGINS = ["http://localhost:5173"]
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    "x-user-id",
+    "x-admin-key",
+]
